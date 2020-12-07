@@ -32,8 +32,13 @@ def separate_bumper_inputs(set):
     return int(x), int(y), int(val), int(cost)
 
 
+bumper_list = []
+
+
 def bumper_input():
     global wall_cost
+    global score
+    score = 0
     wall_cost = int(input("Enter the cost for hitting a wall: "))
     p = int(input("Enter the number of bumpers: "))
     if p < 0:
@@ -45,13 +50,23 @@ def bumper_input():
         bumper_specs = (input(""))
         pattern = '(\d) (\d) (\d) (\d)'
         match = re.search(pattern, bumper_specs)
-        x, y, val, cost = separate_bumper_inputs(bumper_specs)
-        grids[x - 1][y - 1] = 1
-        for item in grids:
-            print(item)
         if not match:
             print("Oops!You did not match the pattern in the example!")
-            break
+            return
+        bumper_list.append(bumper_specs)
+        print("bumper list", bumper_list)
+        x, y, val, cost = separate_bumper_inputs(bumper_specs)
+        grids[x - 1][y - 1] = p + 1
+        for item in grids:
+            print(item)
+
+
+def if_bumper(grid_val, lt, dir):
+    x, y, val, cost = separate_bumper_inputs(bumper_list[grid_val-1])
+    lt = lt - cost
+    dom = rebound_direction(dir)
+    time.sleep(1)
+    return lt, dom, x, y
 
 
 def separate_ball_inputs(set):
@@ -59,9 +74,17 @@ def separate_ball_inputs(set):
     return int(x_b), int(y_b), int(dom), int(lt)
 
 
-def is_wall(x, y, grid_y):
-    if x == 1 or y == grid_y:
+def is_wall(x, y, grid_x, grid_y, dom):
+    if x == 1 and dom == 1:
         return True
+    elif y == grid_y and dom == 0:
+        return True
+    elif x == grid_x and dom == 3:
+        return True
+    elif y == 1 and dom == 2:
+        return True
+    else:
+        return False
 
 
 def rebound_direction(dom):
@@ -78,93 +101,158 @@ def rebound_direction(dom):
         return 2
 
 
-def move_right(lt, x_b, y_b, grid_y):
-    while lt > 0:
-        if is_wall(x_b, y_b, grid_y) and lt >= 1:
+def move_right(lt, x_b, y_b, grid_x, grid_y, temp):
+    while lt != 1:
+        #check for wall
+        if is_wall(x_b, y_b, grid_x, grid_y, 0) and lt >= 1:
             lt = lt - wall_cost
             dom = rebound_direction(0)
-            time.sleep(2)
+            time.sleep(1)
             print("Rebounding...")
             for n in grids:
                 print(n)
-            return lt, dom, x_b, y_b
-        print("Moving Right...")
+            return lt, dom, x_b, y_b, temp
+        ###edit###
         time.sleep(1)
-        print("x = ", x_b)
-        print("y = ", y_b)
-        grids[x_b - 1][y_b - 1] = 0
-        grids[x_b - 1][y_b] = 'b'
-        y_b = y_b + 1
-        lt = lt - 1
-        print("Lifetime ", lt)
-        for n in grids:
-            print(n)
-    return lt, 0, x_b, y_b
+        # Check for bumper
+        if temp == 0:
+            print("Moving right...")
+            grids[x_b - 1][y_b - 1] = 0
+            temp = grids[x_b -1 ][y_b]
+            grids[x_b -1][y_b] = 'b'
+            y_b = y_b + 1
+            lt = lt - 1
+            for n in grids:
+                print(n)
+        else:
+            # bumper exists so rebound the ball 90 degrees
+            lt, dom, x_b, y_b = if_bumper(int(temp), lt, 0)
+            print("Current points")
+            print(x_b)
+            print(y_b)
+            grids[x_b - 1][y_b - 1] = temp
+            print("p_temp", temp)
+            temp = grids[x_b][y_b - 1]
+            print("n_temp", temp)
+            grids[x_b][y_b - 1] = 'b'
+            x_b = x_b + 1
+            for n in grids:
+                print(n)
+            return lt, dom, x_b, y_b, temp
+    return lt, 0, x_b, y_b, temp
 
 
-def move_up(lt, x_b, y_b, grid_y):
-    while lt > 0:
-        print("x =", x_b)
-        print("y =", y_b)
-        if is_wall(x_b, y_b, grid_y) and lt >= 1:
+def move_up(lt, x_b, y_b, grid_x, grid_y, temp):
+    while lt != 1:
+        #check for wall
+        if is_wall(x_b, y_b, grid_x, grid_y, 1) and lt >= 1:
             lt = lt - wall_cost
             dom = rebound_direction(1)
-            time.sleep(2)
+            time.sleep(1)
             print("Rebounding...")
             for n in grids:
                 print(n)
-            return lt, dom, x_b, y_b
-        print("Moving up...")
+            return lt, dom, x_b, y_b, temp
+        # for n in grids:
+        #     print(n)
         time.sleep(1)
-        grids[x_b - 1][y_b - 1] = 0
-        grids[x_b - 2][y_b - 1] = 'b'
-        x_b = x_b - 1
-        lt = lt - 1
-        for n in grids:
-            print(n)
-    return lt, 1, x_b, y_b
+        # Check for bumper
+        if temp == 0:
+            print("Moving up...")
+            grids[x_b - 1][y_b - 1] = 0
+            temp = grids[x_b - 2][y_b - 1]
+            grids[x_b - 2][y_b - 1] = 'b'
+            x_b = x_b - 1
+            lt = lt - 1
+            for n in grids:
+                print(n)
+        else:
+            # bumper exists so rebound ball 90 degrees
+            print("Rebounding")
+            lt, dom, x_b, y_b = if_bumper(int(temp), lt, 1)
+            #set ball to the new location after rebound
+            grids[x_b - 1][y_b - 1] = temp
+            temp = grids[x_b - 1][y_b]
+            grids[x_b - 1][y_b] = 'b'
+            y_b = y_b + 1
+            for n in grids:
+                print(n)
+            return lt, dom, x_b, y_b, temp
+    return lt, 1, x_b, y_b, temp
 
 
-def move_left(lt, x_b, y_b, grid_y):
-    while lt > 0 and y_b < grid_y:
-        if is_wall(x_b, y_b, grid_y) and lt >= 1:
+def move_left(lt, x_b, y_b, grid_x, grid_y, temp):
+    while lt != 1:
+        # check for wall
+        if is_wall(x_b, y_b, grid_x, grid_y, 2) and lt >= 1:
             lt = lt - wall_cost
             dom = rebound_direction(2)
             time.sleep(2)
             print("Rebounding...")
             for n in grids:
                 print(n)
-            return lt, dom, x_b, y_b
+            return lt, dom, x_b, y_b, temp
         print("Moving left...")
         time.sleep(1)
-        grids[x_b - 1][y_b - 1] = 0
-        grids[x_b - 1][y_b - 2] = 'b'
-        y_b = y_b - 1
-        lt = lt - 1
-        for n in grids:
-            print(n)
-    return lt, 2, x_b, y_b
+        # Check for bumper
+
+        if temp == 0:
+            grids[x_b - 1][y_b - 1] = 0
+            temp = grids[x_b - 1][y_b - 2]
+            grids[x_b - 1][y_b - 2] = 'b'
+            y_b = y_b - 1
+            lt = lt - 1
+            for n in grids:
+                print(n)
+        else:
+            # bumper exists so rebound ball 90 degrees
+            lt, dom, x_b, y_b = if_bumper(int(temp), lt, 2)
+            # set ball to the new location after rebound
+            grids[x_b - 1][y_b - 1] = temp
+            temp = grids[x_b - 2][y_b - 1]
+            grids[x_b - 2][y_b - 1] = 'b'
+            x_b = x_b - 1
+            for n in grids:
+                print(n)
+            return lt, dom, x_b, y_b, temp
+    return lt, 2, x_b, y_b, temp
 
 
-def move_down(lt, x_b, y_b, grid_y):
-    while lt > 0:
-        if is_wall(x_b, y_b, grid_y) and lt >= 1:
+def move_down(lt, x_b, y_b, grid_x,  grid_y, temp):
+    while lt != 1:
+        #check for wall
+        if is_wall(x_b, y_b, grid_x, grid_y, 3) and lt >= 1:
             lt = lt - wall_cost
             dom = rebound_direction(3)
             time.sleep(2)
             print("Rebounding...")
             for n in grids:
                 print(n)
-            return lt, dom, x_b, y_b
+            return lt, dom, x_b, y_b, temp
         print("Moving down...")
         time.sleep(1)
-        grids[x_b - 1][y_b - 1] = 0
-        grids[x_b][y_b - 1] = 'b'
-        x_b = x_b + 1
-        lt = lt - 1
-        for n in grids:
-            print(n)
-    return lt, 3, x_b, y_b
+        # Check for bumper
+        if temp == 0:
+            print("temp is zero: ", temp)
+            grids[x_b - 1][y_b - 1] = 0
+            temp = grids[x_b][y_b - 1]
+            grids[x_b][y_b - 1] = 'b'
+            x_b = x_b + 1
+            lt = lt - 1
+            for n in grids:
+                print(n)
+        else:
+            #bumper exists so rebound ball 90 degrees
+            lt, dom, x_b, y_b = if_bumper(int(temp), lt, 3)
+            #set ball to the new location after rebound
+            grids[x_b - 1][y_b - 1] = temp
+            temp = grids[x_b - 1][y_b - 2]
+            grids[x_b - 1][y_b - 2] = 'b'
+            y_b = y_b - 1
+            for n in grids:
+                print(n)
+            return lt, dom, x_b, y_b, temp
+    return lt, 3, x_b, y_b, temp
 
 
 def balls_specs():
@@ -192,19 +280,19 @@ def balls_specs():
             for d in grids:
                 print(d)
             time.sleep(1)
-            # pass
-            while lt > 0:
+            temp = 0
+            while lt > 1:
                 if dom == 0:
-                    lt, dom, x_b, y_b = move_right(lt, x_b, y_b, grid_y)
+                    lt, dom, x_b, y_b, temp = move_right(lt, x_b, y_b, grid_x,grid_y, temp)
 
                 elif dom == 1:
-                    lt, dom, x_b, y_b  = move_up(lt, x_b, y_b, grid_y)
+                    lt, dom, x_b, y_b, temp = move_up(lt, x_b, y_b, grid_x, grid_y, temp)
 
                 elif dom == 2:
-                    lt, dom, x_b, y_b = move_left(lt, x_b, y_b, grid_y)
+                    lt, dom, x_b, y_b, temp = move_left(lt, x_b, y_b, grid_x, grid_y, temp)
 
                 elif dom == 3:
-                    lt, dom, x_b, y_b  = move_down(lt, x_b, y_b, grid_y)
+                    lt, dom, x_b, y_b, temp = move_down(lt, x_b, y_b, grid_x, grid_y, temp)
 
                 else:
                     print("Invalid direction of movement! "
